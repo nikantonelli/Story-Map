@@ -12,4 +12,4 @@ The artefacts are arranged in columns to effectively show you a story map that c
 The idea behind this is that you might want to set up a consistent view (via either the hover or via the pop-up) to explore the status graphically without loads of clicks.
 
 
-![alt text](https://github.com/nikantonelli/PortfolioItem-Tree/blob/RotatedTree/Images/overview.png)
+![alt text](https://github.com/nikantonelli/Story-Map/blob/master/Images/overview.png)
