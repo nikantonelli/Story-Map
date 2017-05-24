@@ -1,0 +1,16 @@
+{
+    "name": "Story Map",
+    "className": "Rally.apps.StoryMap.app",
+    "server": "https://rally1.rallydev.com",
+    "sdk": "2.1",
+    "javascript": [
+        "App.js",
+        "DateMixin.js",
+        "CFDChart.js",
+        "CFDCalc.js",
+        "d3.js"
+    ],
+    "css": [
+        "app.css"
+    ]
+}
