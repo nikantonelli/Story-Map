@@ -103,12 +103,21 @@ Ext.define('Rally.apps.StoryMap.app', {
         return returned;
     },
 
+    timer: null,
+
     launch: function() {
 
-        this.on('redrawTree', this._redrawTree);
-        this.on('drawChildren', this._drawChildren);
+        this.on('redrawTree', this._resetTimer);
+        // this.on('drawChildren', this._drawChildren);
+        this.timer = setTimeout(this._redrawTree, 1000);
+
     },
-        
+
+    _resetTimer: function() {
+        clearTimeout(gApp.timer);
+        gApp.timer = setTimeout(gApp._redrawTree, 1000);
+    },
+
     _drawChildren: function() {
         d3.select("#tree").remove();
         g = d3.select('svg').append('g')
@@ -133,6 +142,9 @@ Ext.define('Rally.apps.StoryMap.app', {
     },
 
     _enterMainApp: function() {
+
+        //Timer can fire before we retrieve anything
+        if (!gApp._nodes.length) return;
 
         //Get all the nodes and the "Unknown" parent virtual nodes
         var nodetree = gApp._createTree(gApp._nodes);
@@ -346,6 +358,20 @@ Ext.define('Rally.apps.StoryMap.app', {
             .attr("id", function(d) { return 'group' + d.data.record.data.FormattedID;})
             .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
 
+        node.each( function(d) {
+            if ( d.data.children && gApp._plotChildren(d)){
+                    //We need to find down to the level
+                    var deepestNode = _.max(gApp._nodeTree.descendants(), function(item) { 
+                        return item.depth + (item.data.children?item.data.children.length:0);}
+                    );
+                    //Now add the child tail length (which is drawn down the page)
+                    var childDepth = (deepestNode.data.children ? (deepestNode.data.children.length + deepestNode.depth + 1) * gApp.MIN_ROW_HEIGHT : 0);
+                    //Set the visible page to this size
+                    var svgSize = d3.select('svg').attr('viewBox').split(" ");
+                    gApp._setViewBox([ parseInt(svgSize[2]), (parseInt(svgSize[3])> childDepth) ? parseInt(svgSize[3]): childDepth]);
+                }
+        });
+
         gApp._drawNodes(node);
 
     },
@@ -360,22 +386,10 @@ Ext.define('Rally.apps.StoryMap.app', {
 
         _.each(items, function(item) {
             var leaf = gApp._createTree(gApp._createNodes([item]));    //Try to create a node from the 'single' datum       
-            var parentNode = gApp._findParentTreeNode(gApp._nodeTree,parent); //Try and find the node in the current tree
+            var parentNode = gApp._findParentNode(gApp._nodes,leaf.data); //Try and find the node in the current tree
             if (parentNode) {
-                parentNode.data.children? parentNode.data.children.push(leaf): parentNode.data.children = [leaf];
+                parentNode.children? parentNode.children.push(leaf): parentNode.children = [leaf];
     //            parentNode.appendChild(leaf);   //Attempt to link it to the parent
-
-                if (gApp._plotChildren(parentNode)){
-                    //We need to find down to the level
-                    var deepestNode = _.max(gApp._nodeTree.descendants(), function(item) { 
-                        return item.depth + (item.data.children?item.data.children.length:0);}
-                    );
-                    //Now add the child tail length (which is drawn down the page)
-                    var childDepth = (deepestNode.data.children ? (deepestNode.data.children.length + deepestNode.depth + 1) * gApp.MIN_ROW_HEIGHT : 0);
-                    //Set the visible page to this size
-                    var svgSize = d3.select('svg').attr('viewBox').split(" ");
-                    gApp._setViewBox([ parseInt(svgSize[2]), (parseInt(svgSize[3])> childDepth) ? parseInt(svgSize[3]): childDepth]);
-                }
             }
         });
     },
