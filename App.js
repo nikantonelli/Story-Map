@@ -80,14 +80,12 @@ Ext.define('Rally.apps.StoryMap.app', {
             itemId: 'rootSurface',
             margin: '5 5 5 5',
             layout: 'auto',
-            title: 'Loading...',
             autoEl: {
                 tag: 'svg'
             },
             listeners: {
                 afterrender:  function() {  gApp = this.up('#rallyApp'); gApp._onElementValid(this);},
-            },
-            visible: false
+            }
         }
     ],
 
@@ -106,7 +104,6 @@ Ext.define('Rally.apps.StoryMap.app', {
     timer: null,
 
     launch: function() {
-
         this.on('redrawTree', this._resetTimer);
         // this.on('drawChildren', this._drawChildren);
         this.timer = setTimeout(this._redrawTree, 1000);
@@ -127,6 +124,8 @@ Ext.define('Rally.apps.StoryMap.app', {
     },
     
     _redrawTree: function() {
+        if (gApp.down('#loadingBox')) gApp.down('#loadingBox').destroy();
+        clearTimeout(gApp.timer);
         if (gApp._nodeTree) {
             _.each(gApp._nodeTree.descendants(),
                 function(d) { 
@@ -237,6 +236,12 @@ Ext.define('Rally.apps.StoryMap.app', {
             },
             listeners: {
                 select: function(selector,store) {
+                    gApp.add( {
+                        xtype: 'container',
+                        itemId: 'loadingBox',
+                        cls: 'info--box',
+                        html: '<p> Loading... </p>'
+                    });
                     if ( gApp._nodes) gApp._nodes = [];
                     gApp._getArtifacts(store);
                 }
@@ -405,7 +410,7 @@ Ext.define('Rally.apps.StoryMap.app', {
             addedChildren +=1 ;
         });
         if (addedChildren !== 0) {
-            gApp.fireEvent('redrawTree');
+            // gApp.fireEvent('redrawTree');
             return true;
         }
         return false;
