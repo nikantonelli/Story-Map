@@ -14,7 +14,6 @@ Ext.define('Rally.apps.StoryMap.app', {
     NODE_CIRCLE_SIZE: 8,
     MIN_CARD_WIDTH: 150,        //Looks silly on less than this
     CARD_BORDER_WIDTH: 5,
-    MIN_ROW_WIDTH: 160,
     MIN_CARD_HEIGHT:    150,
     MIN_ROW_HEIGHT: 160 ,         //Bit more than the card to leave a gap
     LOAD_STORE_MAX_RECORDS: 100, //Can blow up the Rally.data.wsapi.filter.Or
@@ -53,6 +52,8 @@ Ext.define('Rally.apps.StoryMap.app', {
         'Tasks',
         'WorkProduct',
         'OrderIndex',   //Used to get the State field order index
+        'Release',  //Must be present to show for features
+        'Iteration',    //Must be present for stories
         //Customer specific after here. Delete as appropriate
         'c_ProjectIDOBN',
         'c_QRWP',
@@ -78,6 +79,7 @@ Ext.define('Rally.apps.StoryMap.app', {
         {
             xtype: 'container',
             itemId: 'rootSurface',
+            id: 'rootSurface',  //Artifact of ExtJs
             margin: '5 5 5 5',
             layout: 'auto',
             autoEl: {
@@ -150,7 +152,7 @@ Ext.define('Rally.apps.StoryMap.app', {
         gApp._nodeTree = nodetree;
 
         gApp._layoutTree(nodetree);
-        var viewBoxSize = [  (nodetree.leaves().length * gApp.MIN_ROW_WIDTH) + gApp.LEFT_MARGIN_SIZE, (gApp._highestOrdinal() +1) * gApp.MIN_ROW_HEIGHT];
+        var viewBoxSize = [  (nodetree.leaves().length * gApp.MIN_COLUMN_WIDTH) + gApp.LEFT_MARGIN_SIZE, (gApp._highestOrdinal() +1) * gApp.MIN_ROW_HEIGHT];
         gApp._setViewBox(viewBoxSize);
 
         g = d3.select('svg').append('g')
@@ -174,7 +176,7 @@ Ext.define('Rally.apps.StoryMap.app', {
             node.y =  node.depth * gApp.MIN_ROW_HEIGHT;
             node.x = node.parent.x + node.parent.width;
             node.width = 0;
-            node.parent.width += node.leaves()? (node.leaves().length * gApp.MIN_ROW_WIDTH) : gApp.MIN_ROW_WIDTH;
+            node.parent.width += node.leaves()? (node.leaves().length * gApp.MIN_COLUMN_WIDTH) : gApp.MIN_COLUMN_WIDTH;
            if (node.children) gApp._setNodeXY(node);
         });
     
@@ -238,7 +240,7 @@ Ext.define('Rally.apps.StoryMap.app', {
                     gApp.add( {
                         xtype: 'container',
                         itemId: 'loadingBox',
-                        cls: 'info--box',
+                        cls: 'infoText',
                         html: '<p> Loading... </p>'
                     });
                     if ( gApp._nodes) gApp._nodes = [];
@@ -291,11 +293,12 @@ Ext.define('Rally.apps.StoryMap.app', {
                     callback: function(records, operation, s) {
                         if (s) {
                             if (records && records.length) {
-
                                 //At this point, we need to decide whether we are adding nodes to the main tree
                                 //so that it renders across the page....
-                                if (gApp.getSetting('includeStories')){
-                                    gApp._nodes = gApp._nodes.concat( gApp._createNodes(records));
+
+                                if ((collectionConfig.artifactType === 'Stories') && gApp.getSetting('includeStories')){
+                                    gApp._getArtifacts(records);
+//                                    gApp._nodes = gApp._nodes.concat( gApp._createNodes(records));
                                     gApp.fireEvent('redrawTree');
                                 } 
                                 // ...or that we are at the bottom and now need to do a vertical line of things
@@ -306,13 +309,15 @@ Ext.define('Rally.apps.StoryMap.app', {
                         }
                     }
                 };
+
                 //If we are lowest level PI, then we need to fetch User Stories
                 if (parent.hasField('UserStories')) {  
                     collectionConfig.fetch.push(gApp._getModelFromOrd(0).split("/").pop()); //Add the lowest level field on User Stories
+                    collectionConfig.artifactType = 'Stories';
                     parent.getCollection( 'UserStories').load( collectionConfig );
                 } 
                 //If we are userstories, then we need to fetch tasks
-                else if (parent.hasField('Tasks') && (gApp.getSetting('includeStories'))){
+                else if (parent.hasField('Tasks') && gApp.getSetting('includeStories')){
                     parent.getCollection( 'Tasks').load( collectionConfig );                    
                 }
             }
@@ -389,9 +394,9 @@ Ext.define('Rally.apps.StoryMap.app', {
             var leaf = gApp._createTree(gApp._createNodes([item]));    //Try to create a node from the 'single' datum       
             var parentNode = gApp._findParentNode(gApp._nodes,leaf.data); //Try and find the node in the current tree
             if (parentNode) {
-                parentNode.children? parentNode.children.push(leaf): parentNode.children = [leaf];
+                if ( parentNode.children ) {parentNode.children.push(leaf); } else { parentNode.children = [leaf]; }
             }
-        });
+        }); 
     },
 
     _plotChildren: function (parent) {
@@ -424,10 +429,25 @@ Ext.define('Rally.apps.StoryMap.app', {
 
     _drawNode: function(node) {
         node.append("rect")
-            .attr("dy", -3)
+            .attr("width", gApp.MIN_COLUMN_WIDTH)
+            .attr("height", gApp.MIN_ROW_HEIGHT)
+            .attr("class", function(d) {
+                var t;
+                if (d.data.record.data.ObjectID){
+                    if (d.data.record.isUserStory() && (t = d.data.record.get('Iteration'))) t = "q" + "1" + "-9";
+                    else if (d.data.record.isPortfolioItem() && (t = d.data.record.get('Release'))) t = "q" + "4" + "-9";
+                    console.log(t);
+                }
+                
+                return d.data.error ? "error--node": t ? t : "no--errors--done";
+            });
+
+        node.append("rect")
+            .attr("x",(gApp.MIN_COLUMN_WIDTH - gApp.MIN_CARD_WIDTH)/2)
+            .attr("y",(gApp.MIN_ROW_HEIGHT - gApp.MIN_CARD_HEIGHT)/2) 
             .attr("rx", gApp.NODE_CIRCLE_SIZE)
             .attr("ry", gApp.NODE_CIRCLE_SIZE)
-            .attr("width", gApp.MIN_CARD_WIDTH)
+            .attr("width", gApp.MIN_CARD_WIDTH - 6)
             .attr("height", gApp.MIN_CARD_HEIGHT)
             .attr("class", function (d) {   //Work out the individual dot colour
                 var lClass = "dotOutline"; // Might want to use outline to indicate something later
@@ -458,20 +478,28 @@ Ext.define('Rally.apps.StoryMap.app', {
         var ssHeight = 14;  //Match CSS height of default text.
         node.each( function(d, index, array) {
             var g = d3.select(array[index]);
+            g.append("rect")
+                .attr("class", "infoBox")
+                .attr("width", gApp. MIN_CARD_WIDTH - 30)
+                .attr("height", 20)
+                .attr("x", (gApp.MIN_COLUMN_WIDTH - gApp.MIN_CARD_WIDTH + 30)/2)
+                .attr("rx",3)
+                .attr("ry",3);
+
             g.append("text")
                 .text( function(d) { 
                     var retval= d.data.record && d.data.record.get('FormattedID');
                     return retval;
                     })
-                .attr("class", "info--box")
-                .attr("dx", gApp.MIN_CARD_WIDTH/2)
-                .attr("dy", 18)    //Matches CSS file
-                .attr("text-anchor","middle");
+                .attr("class", "infoText")
+                .attr("x", gApp.MIN_CARD_WIDTH/2)
+                .attr("y", 18);
+
             var title = d.data.record && d.data.record.get('Name').substring(0,gApp.TITLE_NAME_LENGTH);
             for ( var i = 0, l = 2; i < title.length;  l +=1){
                 var t = gApp._splitClosestSpace(title.substr(i), ssLength);
                 g.append("text").text(t)
-                    .attr("dx", gApp.NODE_CIRCLE_SIZE)
+                    .attr("dx", (gApp.MIN_COLUMN_WIDTH - gApp.MIN_CARD_WIDTH + 30)/2)
                     .attr("dy",gApp.NODE_CIRCLE_SIZE+(l * ssHeight));
                 i += t.length;
             }                

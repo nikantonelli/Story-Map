@@ -3,10 +3,25 @@
   font: 14px sans-serif;
 }
 
-.info--box {
+.infoBox {
     font-size: 18px;
-    font-family: "ProximaNovaSemiBold,Helvetica,Arial"
+    font-family: ProximaNovaSemiBold, Helvetica, Arial;
+    border: solid 2px lightgrey;
+    background-color: white;
+    background: white;
+    text-anchor: middle;
+    vertical-align: text-top;
+    fill: lightblue;
 }
+
+.infoText {
+    font-size: 18px;
+    font-family: ProximaNovaSemiBold, Helvetica, Arial;
+    text-anchor: middle;
+    vertical-align: text-top;
+    fill: black;
+}
+
 .node--internal text {
   text-shadow: 0 1px 0 #fff, 0 -1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff;
 }
@@ -34,6 +49,9 @@
   stroke: lightblue;
   stroke-opacity: 0.5;
   stroke-width: 3px;
+}
+.no--errors--done {
+  fill: none
 }
 .error--node  {
   fill: #f00;
